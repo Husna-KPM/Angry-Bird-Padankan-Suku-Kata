@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ms"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Angry Bird – Padankan Suku Kata</title>
+<link href="https://fonts.googleapis.com/css2?family=Lateef:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{height:100%;overflow:hidden;background:#10203a;font-family:'Lateef','Noto Naskh Arabic',serif;color:#3a2410}
+#stage{height:100%;display:flex;align-items:center;justify-content:center}
+#game{position:relative;width:60em;height:33.75em;font-size:16px;overflow:hidden;border-radius:.6em;box-shadow:0 .5em 2em #0008}
+canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+#hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;padding:.5em .8em;pointer-events:none;font-size:1.7em;font-weight:800;color:#fff;text-shadow:0 .08em 0 #0006}
+#hud span{background:#0005;border-radius:.6em;padding:0 .6em;line-height:1.4}
+#lv{color:#ff5a6a;letter-spacing:.1em}
+#mute{pointer-events:auto;cursor:pointer;border:0;font-size:1em;background:#0005;color:#fff;border-radius:.6em;padding:0 .5em;font-family:inherit}
+.ov{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#0a1a3a99;padding:1em}
+.ov.on{display:flex}
+.card{background:#fff6dc;border:.22em solid #e2a233;border-radius:1em;padding:.7em 1.4em;text-align:center;max-width:46em;width:100%;box-shadow:0 .4em 0 #b07a1e,0 1em 2em #0007;animation:pop .35s ease-out}
+@keyframes pop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+h1{font-size:2.7em;line-height:1;color:#d62b2b;text-shadow:0 .06em 0 #fff,0 .1em 0 #0003}
+h2{font-size:1.7em;color:#8a4b00}
+ol{text-align:right;direction:rtl;list-style-position:inside;font-size:1.55em;line-height:1.15;margin:.3em 0 .4em;direction:ltr;text-align:left;padding-left:.4em}
+li{margin:.12em 0}
+.btn{font-family:inherit;font-weight:800;font-size:2em;color:#fff;border:0;cursor:pointer;border-radius:.6em;padding:.05em 1.2em;background:linear-gradient(#ff7a4a,#e03a1e);box-shadow:0 .14em 0 #8e1f0c;transition:transform .1s}
+.btn:active{transform:translateY(.1em);box-shadow:0 .04em 0 #8e1f0c}
+.tag{font-size:1.5em;font-weight:700;color:#8a4b00}
+.qp{font-size:1.5em}
+.qs{font-size:5.2em;line-height:1.2;color:#1c3d7a;font-weight:700}
+.opts{display:flex;gap:1em;justify-content:center;margin:.2em 0}
+.opt{font-family:inherit;font-weight:700;font-size:3.4em;line-height:1.3;min-width:2.2em;padding:0 .4em;border-radius:.4em;cursor:pointer;border:.06em solid #1c3d7a;color:#1c3d7a;background:linear-gradient(#fff,#cfe3ff);box-shadow:0 .08em 0 #1c3d7a}
+.opt:active{transform:translateY(.05em)}
+.opt.ok{background:linear-gradient(#8df08d,#2fb64a);color:#fff;border-color:#127a2b}
+.opt.no{background:linear-gradient(#ff9a9a,#e04646);color:#fff;border-color:#8e1f1f}
+#fb{font-size:1.8em;font-weight:800;min-height:1.2em}
+.stars{font-size:3em;color:#f5b400;letter-spacing:.1em}
+.big{font-size:3em;font-weight:800;color:#1c3d7a}
+</style></head><body>
+<div id="stage"><div id="game">
+<canvas id="cv"></canvas>
+<div id="hud"><span id="lv"></span><span id="rd"></span><span id="sc"></span><button id="mute" title="Bunyi">🔊</button></div>
+<div class="ov on" id="menu"><div class="card">
+<h1>Angry Bird</h1><h2>Padankan Suku Kata (Jawi)</h2>
+<ol>
+<li><b>Tarik</b> burung ke belakang pada lastik, kemudian <b>lepaskan</b> untuk melontar.</li>
+<li>Musnahkan semua <b>babi hijau</b> dengan <b>3 ekor burung</b>. Jika gagal, <b>hilang 1 nyawa</b> ♥.</li>
+<li>Selepas setiap pusingan, <b>soalan suku kata</b> akan muncul. Pilih pasangan yang betul.</li>
+<li>Jawapan betul = <b>+10 markah</b>. Jawapan salah = <b>hilang 1 nyawa</b> ♥ juga.</li>
+<li>Ada <b>10 pusingan</b> dan <b>5 nyawa</b>. Markah penuh: 100.</li>
+</ol>
+<button class="btn" id="go">▶ Mula Main</button>
+</div></div>
+<div class="ov" id="quiz"><div class="card" id="qbox"></div></div>
+<div class="ov" id="end"><div class="card" id="ebox"></div></div>
+</div></div>
+<script>
+const W=960,H=540,G=470,AX=170,AY=365,R=16,MAXP=85;
+const $=id=>document.getElementById(id);
+const cv=$('cv'),ctx=cv.getContext('2d');cv.width=1920;cv.height=1080;ctx.scale(2,2);
+const Q=[["مي","لو","لي"],["کا","سوت","بي"],["ڤو","جي","دي"],["چا","ون","مي"],["نا","سي","ني"],["ها","ري","کو"],["ݢو","لا","جي"],["دا","دو","بو"],["رو","تي","کي"],["با","تو","سو"]];
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+/* ---------- Bunyi (disintesis Web Audio) ---------- */
+let AC,muted=false;
+function ac(){if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(AC&&AC.state==='suspended')AC.resume();return AC}
+function tone(f1,f2,d,type='sine',v=.2,delay=0){const a=ac();if(!a||muted)return;const t=a.currentTime+delay,o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.setValueAtTime(f1,t);o.frequency.exponentialRampToValueAtTime(Math.max(f2,1),t+d);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+d+.03)}
+function noise(d,v=.25,fq=900){const a=ac();if(!a||muted)return;const n=a.sampleRate*d,b=a.createBuffer(1,n,a.sampleRate),x=b.getChannelData(0);for(let i=0;i<n;i++)x[i]=(Math.random()*2-1)*(1-i/n);const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();s.buffer=b;f.type='lowpass';f.frequency.value=fq;g.gain.value=v;s.connect(f);f.connect(g);g.connect(a.destination);s.start()}
+const S={
+ stretch:()=>tone(160+Math.random()*60,260,.1,'triangle',.1),
+ launch:()=>{tone(500,1500,.14,'sine',.2);tone(1500,800,.12,'sine',.15,.14);noise(.25,.18,2500)},
+ hit:()=>{noise(.14,.3,700);tone(160,60,.12,'square',.15)},
+ wood:()=>{noise(.22,.35,1400);tone(220,90,.15,'sawtooth',.12)},
+ pig:()=>{tone(260,130,.1,'square',.18);tone(300,110,.14,'square',.16,.1);noise(.2,.2,1800)},
+ ok:()=>[523,659,784,1047].forEach((f,i)=>tone(f,f,.2,'triangle',.25,i*.1)),
+ bad:()=>{tone(300,90,.6,'sawtooth',.22);tone(220,70,.6,'square',.12,.05)},
+ win:()=>[523,659,784,659,784,1047,1319].forEach((f,i)=>tone(f,f,.22,'triangle',.25,i*.12)),
+ lose:()=>[392,330,262,196].forEach((f,i)=>tone(f,f*.97,.35,'sawtooth',.18,i*.22)),
+ click:()=>tone(700,900,.07,'square',.12)
+};
+$('mute').onclick=e=>{muted=!muted;e.target.textContent=muted?'🔇':'🔊';ac()};
+/* ---------- Keadaan permainan ---------- */
+const st={scene:'menu',round:0,score:0,lives:5,order:[],left:3,ents:[],bird:null,parts:[],trail:[],t:0,wait:0,cleared:false};
+let drag=false,lastStretch=0;
+function hud(){$('lv').textContent='♥'.repeat(st.lives)+'♡'.repeat(5-st.lives);$('rd').textContent=`Pusingan ${st.round}/10`;$('sc').textContent=`Markah: ${st.score}`}
+function build(t){
+ st.ents=[];const x0=600+Math.random()*50;
+ const B=(x,b,w,h,m='w')=>st.ents.push({k:'b',m,x,y:b-h/2,w,h,hp:m=='w'?30:55,mh:m=='w'?30:55,vy:0,vx:0});
+ const P=(x,b)=>st.ents.push({k:'p',x,y:b-18,w:36,h:36,hp:16,mh:16,vy:0,vx:0});
+ if(t==0){B(x0,G,16,70);B(x0+90,G,16,70);B(x0+45,G-70,120,14);P(x0+45,G);P(x0+45,G-84)}
+ else if(t==1){B(x0,G,14,64);B(x0+80,G,14,64);B(x0+160,G,14,64);B(x0+40,G-64,90,14);B(x0+120,G-64,90,14);P(x0+40,G);P(x0+120,G);P(x0+80,G-78)}
+ else if(t==2){B(x0,G,60,36,'s');B(x0+60,G,60,36,'s');B(x0+120,G,60,36,'s');B(x0+30,G-36,60,36);B(x0+90,G-36,60,36);P(x0+60,G-72);P(x0+120,G-36)}
+ else if(t==3){B(x0,G,16,90);B(x0+60,G,16,90);B(x0+30,G-90,90,14);B(x0+30,G-104,16,50);P(x0+30,G);P(x0+110,G);P(x0+30,G-154)}
+ else if(t==4){B(x0,G,40,100,'s');P(x0+70,G);P(x0+120,G);B(x0+95,G-36,90,14);P(x0+95,G-50)}
+ else if(t==5){B(x0,G,14,60);B(x0+50,G,14,60);B(x0+25,G-60,70,14);P(x0+25,G);B(x0+130,G,14,90);B(x0+180,G,14,90);B(x0+155,G-90,70,14);P(x0+155,G);P(x0+155,G-104)}
+ else if(t==6){B(x0,G,50,30,'s');B(x0+50,G,50,60,'s');B(x0+100,G,50,90,'s');P(x0,G-30);P(x0+50,G-60);P(x0+100,G-90)}
+ else if(t==7){B(x0,G,16,80);B(x0+70,G,16,80);B(x0+35,G-80,100,14);B(x0+35,G-94,60,40);P(x0+35,G-134);P(x0+35,G);P(x0+120,G)}
+ else if(t==8){B(x0,G,30,50,'s');B(x0+140,G,30,50,'s');B(x0+70,G-50,190,14);P(x0+70,G);P(x0+40,G-64);P(x0+110,G-64)}
+ else{B(x0,G,16,60);B(x0+90,G,16,60);B(x0+45,G-60,110,14);B(x0+10,G-74,16,50);B(x0+80,G-74,16,50);B(x0+45,G-124,100,14);P(x0+45,G);P(x0+45,G-74);P(x0+45,G-138)}
+}
+function newBird(){st.bird={x:AX,y:AY,vx:0,vy:0,state:'ready',t:0,slow:0};st.wait=0}
+function startRound(){st.round++;st.left=3;st.cleared=false;build(st.lay[st.round-1]);newBird();st.scene='play';st.trail=[];hud();$('quiz').classList.remove('on')}
+function startGame(){ac();S.click();st.order=shuffle([0,1,2,3,4,5,6,7,8,9]);st.lay=shuffle([0,1,2,3,4,5,6,7,8,9]);st.round=0;st.score=0;st.lives=5;$('menu').classList.remove('on');$('end').classList.remove('on');startRound()}
+$('go').onclick=startGame;
+function alivePigs(){return st.ents.filter(e=>e.k=='p'&&e.hp>0).length}
+function endRound(){st.scene='quiz';st.cleared=alivePigs()==0;if(!st.cleared){st.lives--;S.bad();hud();if(st.lives<=0){setTimeout(()=>finish(false),900);return}}setTimeout(showQuiz,700)}
+function showQuiz(){
+ const q=Q[st.order[st.round-1]],opts=shuffle([{t:q[1],ok:1},{t:q[2],ok:0}]);
+ $('qbox').innerHTML=`<div class="tag">${st.cleared?'🎉 Semua babi musnah!':'😤 Babi tidak musnah! Nyawa −1'} · Soalan ${st.round}/10 · 10 markah</div><p class="qp">Padankan suku kata ini dengan pasangan yang betul:</p><div class="qs" dir="rtl">${q[0]}</div><div class="opts" dir="ltr"></div><div id="fb">&nbsp;</div>`;
+ const box=$('qbox').querySelector('.opts'),btns=[];
+ opts.forEach(o=>{const b=document.createElement('button');b.className='opt';b.dir='rtl';b.textContent=o.t;b.onclick=()=>answer(o,b,btns);box.appendChild(b);btns.push([b,o])});
+ $('quiz').classList.add('on');
+}
+function answer(o,b,btns){
+ btns.forEach(([x])=>x.disabled=true);
+ btns.forEach(([x,y])=>{if(y.ok)x.classList.add('ok')});
+ if(o.ok){st.score+=10;S.ok();$('fb').textContent='✔ Betul! +10 markah';$('fb').style.color='#127a2b'}
+ else{st.lives--;b.classList.add('no');S.bad();$('fb').textContent='✘ Salah! Nyawa −1';$('fb').style.color='#c02020'}
+ hud();
+ setTimeout(()=>{if(st.lives<=0)finish(false);else if(st.round>=10)finish(true);else startRound()},1500);
+}
+function finish(done){
+ st.scene='end';$('quiz').classList.remove('on');
+ let best=0;try{best=+localStorage.getItem('abSukuKata')||0;if(st.score>best){best=st.score;localStorage.setItem('abSukuKata',best)}}catch(e){}
+ const s=st.score,stars=s>=90?3:s>=60?2:s>=30?1:0;
+ (done?S.win:S.lose)();
+ $('ebox').innerHTML=`<h1>${done?'Tahniah!':'Nyawa Habis!'}</h1><div class="stars">${'★'.repeat(stars)}${'☆'.repeat(3-stars)}</div><div class="big">Markah: ${s} / 100</div><p class="qp">${s>=90?'Cemerlang! Anda hebat!':s>=60?'Bagus! Teruskan usaha.':'Cuba lagi, anda pasti boleh!'} · Markah tertinggi: ${best}</p><br><button class="btn" id="again">↻ Main Lagi</button>`;
+ $('end').classList.add('on');$('again').onclick=startGame;
+}
+/* ---------- Input (tetikus / sentuh / pen) ---------- */
+function pos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H}}
+function moveBird(p){const b=st.bird;let dx=p.x-AX,dy=p.y-AY,d=Math.hypot(dx,dy);if(d>MAXP){dx*=MAXP/d;dy*=MAXP/d}b.x=AX+dx;b.y=Math.min(AY+dy,G-R);const n=performance.now();if(n-lastStretch>110){S.stretch();lastStretch=n}}
+cv.addEventListener('pointerdown',e=>{ac();const b=st.bird;if(st.scene!=='play'||!b||b.state!=='ready')return;const p=pos(e);if(Math.hypot(p.x-b.x,p.y-b.y)<75){drag=true;try{cv.setPointerCapture(e.pointerId)}catch(_){}moveBird(p)}});
+cv.addEventListener('pointermove',e=>{if(drag)moveBird(pos(e))});
+function release(){if(!drag)return;drag=false;const b=st.bird;const d=Math.hypot(b.x-AX,b.y-AY);if(d>22){b.vx=(AX-b.x)*.19;b.vy=(AY-b.y)*.19;b.state='fly';st.left--;S.launch()}else{b.x=AX;b.y=AY}}
+window.addEventListener('pointerup',release);window.addEventListener('pointercancel',release);
+/* ---------- Fizik ---------- */
+function puff(x,y,n,c,sp=4){for(let i=0;i<n;i++){const a=Math.random()*6.28,v=Math.random()*sp;st.parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-1,l:30+Math.random()*25,c,s:2+Math.random()*5})}}
+function kill(e){e.dead=1;if(e.k=='p'){S.pig();puff(e.x,e.y,22,'#7fe05a',5);puff(e.x,e.y,10,'#fff',3)}else{S.wood();puff(e.x,e.y,16,e.m=='w'?'#c58b4a':'#aab3bb',4)}}
+function step(){
+ st.t++;
+ const es=st.ents.filter(e=>!e.dead).sort((a,b)=>(b.y+b.h/2)-(a.y+a.h/2));
+ for(const e of es){
+  e.vy+=.5;e.y+=e.vy;e.x+=e.vx;e.vx*=.92;
+  let fl=G,sup=null;
+  for(const o of es){if(o===e||o.dead||o.y<=e.y)continue;if(Math.abs(o.x-e.x)<(o.w+e.w)/2-2){const top=o.y-o.h/2;if(top<fl){fl=top;sup=o}}}
+  if(e.y+e.h/2>=fl){
+   if(e.vy>4.5){if(e.k=='p')e.hp-=e.vy*3;if(sup&&sup.k=='p')sup.hp-=e.vy*(e.k=='b'?3:1.5);if(e.k=='b'&&e.vy>7)e.hp-=e.vy}
+   e.y=fl-e.h/2;e.vy=0}
+  if(Math.abs(e.vx)>3&&e.k=='b')for(const o of es)if(o.k=='p'&&o!==e&&Math.abs(o.x-e.x)<(o.w+e.w)/2&&Math.abs(o.y-e.y)<(o.h+e.h)/2)o.hp-=Math.abs(e.vx)*3;
+ }
+ for(const e of es)if(e.hp<=0&&!e.dead)kill(e);
+ const b=st.bird;
+ if(b&&b.state=='fly'){
+  b.t++;b.vy+=.35;b.x+=b.vx;b.y+=b.vy;
+  if(st.t%3==0)st.trail.push({x:b.x,y:b.y,l:28});
+  b.onG=false;
+  if(b.y+R>=G){b.y=G-R;b.onG=true;if(Math.abs(b.vy)>3)S.hit();b.vy*=-.3;if(Math.abs(b.vy)<1.2)b.vy=0;b.vx*=.93}
+  for(const e of st.ents){if(e.dead)continue;
+   const cx=Math.max(e.x-e.w/2,Math.min(b.x,e.x+e.w/2)),cy=Math.max(e.y-e.h/2,Math.min(b.y,e.y+e.h/2));let dx=b.x-cx,dy=b.y-cy,d=Math.hypot(dx,dy);
+   if(d<R){const sp=Math.hypot(b.vx,b.vy);if(d<.01){dx=-1;dy=0;d=1}
+    if(sp>1.5){e.hp-=sp*(e.k=='p'?3:2.2);e.vx+=b.vx*.3;if(e.hp>0){e.k=='p'?S.pig():S.hit()}puff(cx,cy,5,'#fff',3);b.vx*=.62;b.vy*=.62;b.vx-=Math.sign(b.vx)*.5}
+    b.x+=dx/d*(R-d);b.y+=dy/d*(R-d)}}
+  const sp=Math.hypot(b.vx,b.vy);b.slow=sp<.4?b.slow+1:0;
+  if((b.onG&&sp<.8)||b.slow>40||b.t>420||b.x>W+60||b.x<-60||b.y>H+60)b.state='done';
+ }
+ for(const p of st.parts){p.x+=p.vx;p.y+=p.vy;p.vy+=.15;p.l--}st.parts=st.parts.filter(p=>p.l>0);
+ for(const t of st.trail)t.l--;st.trail=st.trail.filter(t=>t.l>0);
+ if(st.scene=='play'){
+  const al=alivePigs();
+  if(!st.wait){if(al==0)st.wait=75;else if(b&&b.state=='done')st.wait=80}
+  if(st.wait&&--st.wait==0){if(alivePigs()==0||st.left<=0)endRound();else newBird()}
+ }
+}
+/* ---------- Lukisan ---------- */
+function cloud(x,y,s){const c=ctx;c.fillStyle='#ffffffdd';c.beginPath();[[0,0,26],[28,-10,32],[60,0,26],[30,8,28]].forEach(([a,b,r])=>{c.moveTo(x+(a+r)*s,y+b*s);c.arc(x+a*s,y+b*s,r*s,0,7)});c.fill()}
+function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y,w,h,r):ctx.rect(x,y,w,h)}
+function drawBird(x,y,r){const c=ctx,s=r/16;c.save();c.translate(x,y);c.scale(s,s);
+ c.fillStyle='#222';[[-4,-14,-10,-26],[0,-15,0,-28],[4,-14,10,-25]].forEach(([a,b,d,e])=>{c.beginPath();c.moveTo(a-3,b+2);c.lineTo(d,e);c.lineTo(a+3,b+2);c.fill()});
+ let g=c.createRadialGradient(-4,-5,2,0,0,18);g.addColorStop(0,'#ff6a5a');g.addColorStop(1,'#c4161c');c.fillStyle=g;c.beginPath();c.arc(0,0,16,0,7);c.fill();
+ c.fillStyle='#f3d7b0';c.beginPath();c.ellipse(0,9,10,6,0,0,7);c.fill();
+ c.fillStyle='#fff';c.beginPath();c.arc(-5,-3,5,0,7);c.arc(5,-3,5,0,7);c.fill();
+ c.fillStyle='#000';c.beginPath();c.arc(-4,-3,2,0,7);c.arc(4,-3,2,0,7);c.fill();
+ c.strokeStyle='#111';c.lineWidth=3;c.beginPath();c.moveTo(-11,-10);c.lineTo(-2,-6);c.moveTo(11,-10);c.lineTo(2,-6);c.stroke();
+ c.fillStyle='#ffb300';c.beginPath();c.moveTo(-3,1);c.lineTo(11,5);c.lineTo(-3,9);c.closePath();c.fill();c.restore()}
+function drawPig(e){const c=ctx,r=e.w/2,hurt=e.hp<e.mh*.6;c.save();c.translate(e.x,e.y);
+ c.fillStyle='#5bb83f';c.beginPath();c.arc(-r*.6,-r*.8,5,0,7);c.arc(r*.6,-r*.8,5,0,7);c.fill();
+ const g=c.createRadialGradient(-5,-6,2,0,0,r+2);g.addColorStop(0,hurt?'#a6d98a':'#9be56f');g.addColorStop(1,'#4aa02f');c.fillStyle=g;c.beginPath();c.arc(0,0,r,0,7);c.fill();
+ c.fillStyle='#fff';c.beginPath();c.arc(-7,-5,5,0,7);c.arc(7,-5,5,0,7);c.fill();
+ c.fillStyle='#000';c.beginPath();c.arc(-6,-4,2,0,7);c.arc(6,-4,2,0,7);c.fill();
+ c.fillStyle='#78d052';c.strokeStyle='#3d8a28';c.lineWidth=1.5;c.beginPath();c.ellipse(0,6,9,6.5,0,0,7);c.fill();c.stroke();
+ c.fillStyle='#2f6e1e';c.beginPath();c.ellipse(-3.5,6,1.8,2.6,0,0,7);c.ellipse(3.5,6,1.8,2.6,0,0,7);c.fill();
+ if(hurt){c.strokeStyle='#2f6e1e';c.lineWidth=1.5;c.beginPath();c.moveTo(-9,-11);c.lineTo(-3,-8);c.stroke()}c.restore()}
+function drawBlock(e){const c=ctx,w=e.m=='w',f=e.hp/e.mh;c.save();c.translate(e.x,e.y);
+ c.fillStyle=w?(f>.5?'#c98f4e':'#a9763f'):(f>.5?'#a9b2ba':'#8c959d');c.strokeStyle=w?'#7a4a1e':'#5f6870';c.lineWidth=2;rr(-e.w/2,-e.h/2,e.w,e.h,3);c.fill();c.stroke();
+ c.strokeStyle=w?'#00000022':'#ffffff44';c.lineWidth=1;c.beginPath();if(e.w>e.h){for(let y=-e.h/2+5;y<e.h/2-2;y+=5){c.moveTo(-e.w/2+3,y);c.lineTo(e.w/2-3,y)}}else{for(let x=-e.w/2+5;x<e.w/2-2;x+=5){c.moveTo(x,-e.h/2+3);c.lineTo(x,e.h/2-3)}}c.stroke();
+ if(f<.6){c.strokeStyle='#2a1808';c.lineWidth=1.5;c.beginPath();c.moveTo(-e.w/4,-e.h/2);c.lineTo(0,0);c.lineTo(e.w/5,e.h/2);c.stroke()}c.restore()}
+function draw(){
+ const c=ctx;c.clearRect(0,0,W,H);
+ let g=c.createLinearGradient(0,0,0,G);g.addColorStop(0,'#4fb8f0');g.addColorStop(1,'#d9f4ff');c.fillStyle=g;c.fillRect(0,0,W,H);
+ c.fillStyle='#fff6a8';c.beginPath();c.arc(840,95,40,0,7);c.fill();
+ [[100,90,1],[420,55,.75],[700,150,.9],[260,160,.6]].forEach(([x,y,s],i)=>{const L=W+300,cx=(((x-st.t*.12*(i+1))%L)+L)%L-150;cloud(cx,y,s)});
+ c.fillStyle='#8ed56e';c.beginPath();c.moveTo(0,G);c.bezierCurveTo(100,300,330,290,450,G);c.fill();
+ c.fillStyle='#6cc258';c.beginPath();c.moveTo(280,G);c.bezierCurveTo(430,340,720,320,W,G-10);c.lineTo(W,G);c.fill();
+ c.fillStyle='#8a5a2b';c.fillRect(0,G,W,H-G);c.fillStyle='#4fae3d';c.fillRect(0,G,W,12);c.fillStyle='#3d8f30';c.fillRect(0,G+10,W,4);
+ c.fillStyle='#6e451f';for(let i=0;i<40;i++)c.fillRect((i*97)%W,G+22+(i*31)%70,10,5);
+ for(const e of st.ents)if(!e.dead)e.k=='p'?drawPig(e):drawBlock(e);
+ const b=st.bird,ready=b&&(b.state=='ready');
+ // lastik belakang
+ c.strokeStyle='#5a3515';c.lineCap='round';c.lineWidth=9;c.beginPath();c.moveTo(AX+2,G);c.lineTo(AX+2,AY+30);c.lineTo(AX+14,AY+2);c.stroke();
+ if(ready){c.strokeStyle='#2b1608';c.lineWidth=6;c.beginPath();c.moveTo(AX+13,AY+2);c.lineTo(b.x,b.y);c.stroke()}
+ // burung menunggu
+ const wait=st.left-(ready?1:0);for(let i=0;i<wait;i++)drawBird(AX-50-i*38,G-R,R);
+ // garis lintasan
+ if(drag&&ready){let x=b.x,y=b.y,vx=(AX-b.x)*.19,vy=(AY-b.y)*.19;for(let i=1;i<=48;i++){vy+=.35;x+=vx;y+=vy;if(y>G)break;if(i%4==0){c.fillStyle=`rgba(255,255,255,${1-i/55})`;c.beginPath();c.arc(x,y,3.5,0,7);c.fill()}}}
+ for(const t of st.trail){c.fillStyle=`rgba(255,255,255,${t.l/40})`;c.beginPath();c.arc(t.x,t.y,3,0,7);c.fill()}
+ if(b&&b.state!='gone')drawBird(b.x,b.y,R);
+ c.strokeStyle='#7a4a22';c.lineWidth=9;c.beginPath();c.moveTo(AX+2,AY+30);c.lineTo(AX-12,AY-2);c.stroke();
+ if(ready){c.strokeStyle='#3b1f0b';c.lineWidth=6;c.beginPath();c.moveTo(AX-11,AY);c.lineTo(b.x,b.y);c.stroke()}
+ for(const p of st.parts){c.globalAlpha=Math.min(1,p.l/20);c.fillStyle=p.c;c.beginPath();c.arc(p.x,p.y,p.s,0,7);c.fill()}c.globalAlpha=1;
+ if(st.scene=='play'&&ready&&!drag&&st.t%120<70&&st.round==1&&st.left==3){c.fillStyle='#fff';c.font='700 26px Lateef';c.textAlign='center';c.fillText('⟵ Tarik burung & lepaskan!',AX+40,AY-60)}
+}
+let acc=0,last=0;
+function loop(ts){const dt=Math.min(100,ts-last);last=ts;acc+=dt;while(acc>=16.667){step();acc-=16.667}draw();requestAnimationFrame(loop)}
+function fit(){const s=Math.min(innerWidth/960,$('stage').clientHeight/540);$('game').style.fontSize=(16*s)+'px'}
+addEventListener('resize',fit);addEventListener('orientationchange',fit);fit();
+build(Math.floor(Math.random()*10));st.bird={x:AX,y:AY,vx:0,vy:0,state:'ready',t:0,slow:0};st.left=3;hud();
+requestAnimationFrame(loop);
+</script></body></html>
